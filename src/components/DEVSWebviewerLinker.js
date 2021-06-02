@@ -32,7 +32,7 @@ export class DEVSWebviewerLinker extends Component {
         const currentCardId = this.state.currentCardId
         if (currentCardId) {
             const jsonElement = this.getJsonContent(this.state.currentCardId)
-            jsonElement.svg = Object.keys(selectedSvgElements).map(id => `#${id}`)
+            jsonElement.svg = Object.keys(selectedSvgElements).map(id => id)
             // TODO
         }
     }
@@ -202,7 +202,7 @@ export class DEVSWebviewerLinker extends Component {
                 }
             })
             .on('click', function() {
-                const id = self.getId(this)
+                const id = self.getId(d3.select(this).attr('id'))
                 if (id in self.state.selectedSvgElements) {
                     const selections = { ...self.state.selectedSvgElements };
                     d3.select(this).attr('stroke', selections[id].stroke);
