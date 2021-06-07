@@ -20,9 +20,11 @@
                         jsonFile = file
                     }
                 }
-                var main = new DEVSWebviewerLinker(document.getElementById('devs-webviewer-linker'), { jsonFile, svgFile });
-                await main.render();
-                fileElem.remove();
+                if (jsonFile && svgFile) {
+                    var linker = new DEVSWebviewerLinker(document.getElementById('devs-webviewer-linker'), { jsonFile, svgFile });
+                    await linker.render();
+                    fileElem.remove();
+                }
             }
         </script>
     </head>

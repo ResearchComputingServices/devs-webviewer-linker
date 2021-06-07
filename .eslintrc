@@ -5,6 +5,7 @@
         "FileReader": true,
         "document": true,
         "d3": true,
+        "Set": true,
     },
     "extends": "eslint:recommended",
     "rules": {
