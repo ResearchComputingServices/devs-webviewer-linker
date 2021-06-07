@@ -14,15 +14,19 @@ export class DEVSWebviewerLinker extends Component {
             currentCardId: null,
             svgIdMap: new Set(),
             schema: {
+                all: {
+                    caption: 'All',
+                    emptyMessage: 'Nothing found',
+                },
                 nodes: {
-                    locale: 'Nodes',
+                    caption: 'Nodes',
                     emptyMessage: 'Nothing found',
                     contentFilter: (_, value) => {
                         return typeof value !== 'object'
                     },
                 },
                 ports: {
-                    locale: 'Output ports',
+                    caption: 'Output ports',
                     emptyMessage: 'There are no ports for this model',
                     filter: (_, value) => {
                         return value.type === 'output'
@@ -32,7 +36,7 @@ export class DEVSWebviewerLinker extends Component {
                     },
                 },
                 links: {
-                    locale: 'Links',
+                    caption: 'Links',
                     emptyMessage: 'Nothing found',
                     contentFilter: (_, value) => {
                         return typeof value !== 'object'
@@ -364,24 +368,17 @@ export class DEVSWebviewerLinker extends Component {
         const buttonContainer = this.addHTMLTo(container, `<div class="p-2" />`)
         const cardsContainer = this.addHTMLTo(container, `<div id="cards" class="h-100 d-flex flex-row flex-wrap align-content-start justify-content-center overflow-auto" />`)
         this.addHTMLTo(container, '<p class="m-2">NOTE: Input ports will be automatically associated.<p>')
-        buttons.push(this.addHTMLTo(
-            buttonContainer,
-            `<button type="button" class="btn btn-secondary m-1" data-button-type="all">All</button>`
-        ))
         Object.keys(this.state.schema).forEach(buttonName => {
-            const locale = this.state.schema[buttonName].locale
+            const caption = this.state.schema[buttonName].caption
             const button = this.addHTMLTo(
                 buttonContainer,
-                `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${locale}</button>`
+                `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${caption}</button>`
             )
             buttons.push(button)
             button.addEventListener('click', () => {
                 this.onTopLevelItemSelection(cardsContainer, buttons, buttonName)
             }, false);
         })
-        buttons[0].addEventListener('click', () => {
-            this.onTopLevelItemSelection(cardsContainer, buttons, 'all')
-        }, false);
         this.state.buttons = buttons
     }
 
