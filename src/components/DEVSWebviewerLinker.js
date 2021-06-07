@@ -38,7 +38,7 @@ export class DEVSWebviewerLinker extends Component {
                     }
                 },
             },
-            svgIdMap: new Set()
+            svgIdMap: new Set(),
         }
     }
 
@@ -50,19 +50,28 @@ export class DEVSWebviewerLinker extends Component {
         return this.state.jsonContent[key][index];
     }
 
+    showCardWarning = (cardId) => {
+        const warningIcon = document.getElementById(`warning-icon-${cardId}`)
+        warningIcon.classList.remove('invisible')
+        warningIcon.classList.add('visible')
+    }
+
+    hideCardWarning = (cardId) => {
+        const warningIcon = document.getElementById(`warning-icon-${cardId}`)
+        warningIcon.classList.remove('visible')
+        warningIcon.classList.add('invisible')
+    }
+
     createAssociation = () => {
         const selectedSvgElements = this.state.selectedSvgElements
         const currentCardId = this.state.currentCardId
         if (currentCardId) {
-            const jsonElement = this.getJsonContent(this.state.currentCardId)
+            const jsonElement = this.getJsonContent(currentCardId)
             jsonElement.svg = Object.keys(selectedSvgElements).map(id => id)
-            const warningIcon = document.getElementById(`warning-icon-${currentCardId}`)
             if (jsonElement.svg.length === 0) {
-                warningIcon.classList.remove('invisible')
-                warningIcon.classList.add('visible')
+                this.showCardWarning(currentCardId)
             } else {
-                warningIcon.classList.remove('visible')
-                warningIcon.classList.add('invisible')
+                this.hideCardWarning(currentCardId)
             }
         }
     }
@@ -99,18 +108,14 @@ export class DEVSWebviewerLinker extends Component {
             const id = card.getAttribute('id')
             if (id != null) {
                 const jsonContent = this.getJsonContent(id)
-                const warningIcon = document.getElementById(`warning-icon-${id}`)
                 if (Array.isArray(jsonContent.svg)) {
                     if (jsonContent.svg.some(id => this.state.svgIdMap.has(id))) {
-                        warningIcon.classList.remove('visible')
-                        warningIcon.classList.add('invisible')
+                        this.hideCardWarning(id)
                     } else {
-                        warningIcon.classList.remove('invisible')
-                        warningIcon.classList.add('visible')
+                        this.showCardWarning(id)
                     }
                 } else {
-                    warningIcon.classList.remove('invisible')
-                    warningIcon.classList.add('visible')
+                    this.showCardWarning(id)
                 }
             }
         }
@@ -195,7 +200,8 @@ export class DEVSWebviewerLinker extends Component {
         `
     }
 
-    onJsonButtonPicker = (cardsContainer, buttons, key, jsonContent) => {
+    onTopLevelItemSelection = (cardsContainer, buttons, key) => {
+        const jsonContent = this.state.jsonContent;
         if (key !== this.state.currentButtonPicker) {
             this.clearSvgSelections()
             this.emptyInnerHtml(cardsContainer)
@@ -337,26 +343,48 @@ export class DEVSWebviewerLinker extends Component {
             .style('cursor', 'pointer');
     }
 
-    renderJson = (container, jsonContent) => {
-        let buttonNames = Object.keys(jsonContent)
+    renderJson = (container) => {
         const buttons = []
         const buttonContainer = this.addHTMLTo(container, `<div class="p-2" />`)
-        const cardsContainer = this.addHTMLTo(container, `<div id="cards" class="d-flex flex-row flex-wrap justify-content-center align-content-flex-start overflow-auto" />`)
+        const cardsContainer = this.addHTMLTo(container, `<div id="cards" class="h-100 d-flex flex-row flex-wrap align-content-start justify-content-center overflow-auto" />`)
         this.addHTMLTo(container, '<p class="m-2">NOTE: Input ports will be automatically associated.<p>')
-        buttonNames = ['all'].concat(buttonNames)
-        buttonNames.forEach(buttonName => {
-            if (buttonName in this.state.schema) {
-                const button = this.addHTMLTo(
-                    buttonContainer,
-                    `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${this.state.schema[buttonName].locale}</button>`
-                )
-                buttons.push(button)
-                button.addEventListener('click', () => {
-                    this.onJsonButtonPicker(cardsContainer, buttons, buttonName, jsonContent)
-                }, false);
-            }
+        Object.keys(this.state.schema).forEach(buttonName => {
+            const locale = this.state.schema[buttonName].locale
+            const button = this.addHTMLTo(
+                buttonContainer,
+                `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${locale}</button>`
+            )
+            buttons.push(button)
+            button.addEventListener('click', () => {
+                this.onTopLevelItemSelection(cardsContainer, buttons, buttonName)
+            }, false);
         })
         this.state.buttons = buttons
+    }
+
+    hasCorruptedAssociations = () => {
+        let result = true
+        const jsonContent = this.state.jsonContent
+        for (const key in jsonContent) {
+            if (!result) return result
+            if (key in this.state.schema) {
+                const slice = jsonContent[key]
+                if (Array.isArray(slice)) {
+                    slice.forEach((_, index) => {
+                        const jsonElem = jsonContent[key][index]
+                        const svg = jsonElem.svg
+                        if (Array.isArray(svg)) {
+                            const hasAssociation = svg.every(id => this.state.svgIdMap.has(id)) 
+                            if (!hasAssociation) {
+                                result = false
+                                return
+                            }
+                        }
+                    })
+                }
+            }
+        }
+        return result
     }
 
     render = async () => {
