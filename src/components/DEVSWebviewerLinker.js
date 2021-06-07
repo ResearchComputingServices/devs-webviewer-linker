@@ -12,10 +12,8 @@ export class DEVSWebviewerLinker extends Component {
             selectedSvgElements: {},
             currentButtonPicker: '',
             currentCardId: null,
+            svgIdMap: new Set(),
             schema: {
-                all: {
-                    locale: 'All',
-                },
                 nodes: {
                     locale: 'Nodes',
                     contentFilter: (_, value) => {
@@ -38,7 +36,6 @@ export class DEVSWebviewerLinker extends Component {
                     }
                 },
             },
-            svgIdMap: new Set(),
         }
     }
 
@@ -348,6 +345,10 @@ export class DEVSWebviewerLinker extends Component {
         const buttonContainer = this.addHTMLTo(container, `<div class="p-2" />`)
         const cardsContainer = this.addHTMLTo(container, `<div id="cards" class="h-100 d-flex flex-row flex-wrap align-content-start justify-content-center overflow-auto" />`)
         this.addHTMLTo(container, '<p class="m-2">NOTE: Input ports will be automatically associated.<p>')
+        buttons.push(this.addHTMLTo(
+            buttonContainer,
+            `<button type="button" class="btn btn-secondary m-1" data-button-type="all">All</button>`
+        ))
         Object.keys(this.state.schema).forEach(buttonName => {
             const locale = this.state.schema[buttonName].locale
             const button = this.addHTMLTo(
@@ -359,6 +360,9 @@ export class DEVSWebviewerLinker extends Component {
                 this.onTopLevelItemSelection(cardsContainer, buttons, buttonName)
             }, false);
         })
+        buttons[0].addEventListener('click', () => {
+            this.onTopLevelItemSelection(cardsContainer, buttons, 'all')
+        }, false);
         this.state.buttons = buttons
     }
 
