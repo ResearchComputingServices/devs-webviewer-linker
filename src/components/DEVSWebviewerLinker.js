@@ -8,14 +8,35 @@ export class DEVSWebviewerLinker extends Component {
         this.state = {
             buttons: [],
             jsonContent: null,
+            originalJsonContent: null,
             selectedSvgElements: {},
             currentButtonPicker: '',
             currentCardId: null,
-            allowedButtons: {
-                all: 'all',
-                nodes: 'nodes',
-                ports: 'output ports',
-                links: 'links',
+            schema: {
+                all: {
+                    locale: 'All',
+                },
+                nodes: {
+                    locale: 'Nodes',
+                    contentFilter: (_, value) => {
+                        return typeof value !== 'object'
+                    }
+                },
+                ports: {
+                    locale: 'Output ports',
+                    filter: (_, value) => {
+                        return value.type === 'output'
+                    },
+                    contentFilter: (key, value) => {
+                        return key !== 'type' && typeof value !== 'object'
+                    }
+                },
+                links: {
+                    locale: 'Links',
+                    contentFilter: (_, value) => {
+                        return typeof value !== 'object'
+                    }
+                },
             },
             svgIdMap: new Set()
         }
@@ -35,13 +56,13 @@ export class DEVSWebviewerLinker extends Component {
         if (currentCardId) {
             const jsonElement = this.getJsonContent(this.state.currentCardId)
             jsonElement.svg = Object.keys(selectedSvgElements).map(id => id)
-            const warningIconId = `warning-icon-${currentCardId}`
+            const warningIcon = document.getElementById(`warning-icon-${currentCardId}`)
             if (jsonElement.svg.length === 0) {
-                document.getElementById(warningIconId).classList.remove('invisible')
-                document.getElementById(warningIconId).classList.add('visible')
+                warningIcon.classList.remove('invisible')
+                warningIcon.classList.add('visible')
             } else {
-                document.getElementById(warningIconId).classList.remove('visible')
-                document.getElementById(warningIconId).classList.add('invisible')
+                warningIcon.classList.remove('visible')
+                warningIcon.classList.add('invisible')
             }
         }
     }
@@ -61,10 +82,6 @@ export class DEVSWebviewerLinker extends Component {
         }
     }
 
-    onCardClick = () => {
-        this.destroy()
-    }
-
     readFileAsJson = async file => {
         const text = await file.text();
         return JSON.parse(text);
@@ -76,20 +93,36 @@ export class DEVSWebviewerLinker extends Component {
         fileReader.readAsText(file);
     });
 
-    getCardContent = (buttonName, item) => {
-        let contents = ''
-        if (typeof item === 'object') {
-            for (const key in item) {
-                if (buttonName === 'ports' && key === 'type') {
-                    continue;
+    recomputeCardWarnings = () => {
+        var cards = document.getElementById('cards').querySelectorAll('div');
+        for (const card of cards) {
+            const id = card.getAttribute('id')
+            if (id != null) {
+                const jsonContent = this.getJsonContent(id)
+                const warningIcon = document.getElementById(`warning-icon-${id}`)
+                if (Array.isArray(jsonContent.svg)) {
+                    if (jsonContent.svg.some(id => this.state.svgIdMap.has(id))) {
+                        warningIcon.classList.remove('visible')
+                        warningIcon.classList.add('invisible')
+                    } else {
+                        warningIcon.classList.remove('invisible')
+                        warningIcon.classList.add('visible')
+                    }
+                } else {
+                    warningIcon.classList.remove('invisible')
+                    warningIcon.classList.add('visible')
                 }
-                const value = item[key]
-                contents += `<div class="p-1">
-                    <b>${key}</b>: ${value}
-                </div>`
             }
         }
-        return contents
+    }
+
+    clearCardSelection = () => {
+        const currentCardId = this.state.currentCardId;
+        if (currentCardId) {
+            const card = document.getElementById(currentCardId)
+            card.classList.remove('dwl-highlight-card')
+            this.state.currentCardId = null
+        }
     }
 
     clearSvgSelections = () => {
@@ -101,29 +134,37 @@ export class DEVSWebviewerLinker extends Component {
                 elem.attr('stroke', self.state.selectedSvgElements[id].stroke);
             }
         }
-        this.setState((s) => ({
-            ...s,
-            selectedSvgElements: {}
-        }))
+        this.state.selectedSvgElements = {}
+    }
+
+    getCardContent = (buttonName, item) => {
+        let contents = ''
+        if (typeof item === 'object') {
+            for (const key in item) {
+                const value = item[key]
+                const contentFilter = this.state.schema[buttonName].contentFilter
+                if (typeof contentFilter === 'function' && !contentFilter(key, value)) {
+                    continue;
+                }
+                contents += `<div class="p-1">
+                    <b>${key}</b>: ${value}
+                </div>`
+            }
+        }
+        return contents
     }
 
     onCardClick = (selectedCard) => {
         this.clearSvgSelections()
-        var cards = document.getElementById('json-container').querySelectorAll('div');
+        var cards = document.getElementById('cards').querySelectorAll('div');
         for (const card of cards) {
             const id = selectedCard.getAttribute('id')
             if (id === card.getAttribute('id')) {
                 if (this.state.currentCardId === id) {
-                    this.setState(s => ({
-                        ...s,
-                        currentCardId: null
-                    }))
+                    this.state.currentCardId = null
                     card.classList.remove('dwl-highlight-card')
                 } else {
-                    this.setState(s => ({
-                        ...s,
-                        currentCardId: id
-                    }))
+                    this.state.currentCardId = id
                     card.classList.add('dwl-highlight-card')
                     const jsonContent = this.getJsonContent(id)
                     if (Array.isArray(jsonContent.svg)) {
@@ -132,10 +173,7 @@ export class DEVSWebviewerLinker extends Component {
                             if (elem && elem.size() !== 0) {
                                 const selections = { ...this.state.selectedSvgElements }
                                 selections[id] = { id, stroke: elem.attr('stroke')};
-                                this.setState(s => ({
-                                    ...s,
-                                    selectedSvgElements: selections
-                                }))
+                                this.state.selectedSvgElements = selections
                                 elem.attr('stroke', 'tomato');
                             }
                         })
@@ -161,17 +199,20 @@ export class DEVSWebviewerLinker extends Component {
         if (key !== this.state.currentButtonPicker) {
             this.clearSvgSelections()
             this.emptyInnerHtml(cardsContainer)
-            this.setState(s => ({
-                ...s,
-                currentButtonPicker: key
-            }))
+            this.state.currentButtonPicker = key
             if (key == 'all') {
                 for (const key in jsonContent) {
-                    if (key in this.state.allowedButtons) {
+                    if (key in this.state.schema) {
                         const slice = jsonContent[key]
                         if (Array.isArray(slice)) {
                             slice.forEach((item, index) => {
                                 const jsonElem = jsonContent[key][index]
+                                const filterCard = this.state.schema[key].filter
+                                if (typeof filterCard  == 'function') {
+                                    if (!filterCard(key, jsonElem)) {
+                                        return;
+                                    }
+                                }
                                 const card = this.addHTMLTo(
                                     cardsContainer,
                                     `<div style="position:relative" id="${key}-${index}" class="card m-1 p-4 dwl-pointer dwl-card">
@@ -191,6 +232,12 @@ export class DEVSWebviewerLinker extends Component {
                 if (Array.isArray(slice)) {
                     slice.forEach((item, index) => {
                         const jsonElem = jsonContent[key][index]
+                        const filterCard = this.state.schema[key].filter
+                        if (typeof filterCard  == 'function') {
+                            if (!filterCard(key, jsonElem)) {
+                                return;
+                            }
+                        }
                         const card = this.addHTMLTo(
                             cardsContainer,
                             `<div style="position:relative" id="${key}-${index}" class="card m-1 p-4 dwl-pointer dwl-card">
@@ -216,8 +263,40 @@ export class DEVSWebviewerLinker extends Component {
         }
     }
 
+    clone = (jsonContent) => {
+        return JSON.parse(JSON.stringify(jsonContent))
+    }
+
+    reset = () => {
+        this.state.jsonContent = this.clone(this.state.originalJsonContent)
+        this.clearSvgSelections()
+        this.clearCardSelection()
+        this.recomputeCardWarnings()
+    }
+
+    clear = () => {
+        const jsonContent = this.state.jsonContent
+        for (const key in jsonContent) {
+            if (key in this.state.schema) {
+                const slice = jsonContent[key]
+                if (Array.isArray(slice)) {
+                    slice.forEach((_, index) => {
+                        const jsonElem = jsonContent[key][index]
+                        if (Array.isArray(jsonElem.svg)) {
+                            jsonElem.svg = [] 
+                        }
+                    })
+                }
+            }
+        }
+        this.clearSvgSelections()
+        this.clearCardSelection()
+        this.recomputeCardWarnings()
+    }
+
     renderSvg = (svgContainer, svgContent) => {
-        this.addHTMLTo(svgContainer, svgContent)
+        const svg = this.addHTMLTo(svgContainer, svgContent)
+        svg.setAttribute('id', 'svg-content')
         const self = this;
         d3.select('svg')
             .select('g')
@@ -233,19 +312,19 @@ export class DEVSWebviewerLinker extends Component {
                 }
             })
             .on('click', function() {
+                if (!self.state.currentCardId) return 
                 const id = self.parseId(d3.select(this).attr('id'))
+                const selections = { ...self.state.selectedSvgElements };
                 if (id in self.state.selectedSvgElements) {
-                    const selections = { ...self.state.selectedSvgElements };
                     d3.select(this).attr('stroke', selections[id].stroke);
                     delete selections[id];
-                    self.setState(s => ({ ...s, selectedSvgElements: selections }))
+                    self.state.selectedSvgElements = selections
                 } else {
-                    const selections = { ...self.state.selectedSvgElements };
                     const elem = d3.select(this);
                     selections[id] = { id, stroke: elem.attr('stroke')};
-                    self.setState(s => ({ ...s, selectedSvgElements: selections }))
                     elem.attr('stroke', 'tomato');
                 }
+                self.state.selectedSvgElements = selections
                 self.createAssociation()
             })
             .each(function() {
@@ -262,13 +341,14 @@ export class DEVSWebviewerLinker extends Component {
         let buttonNames = Object.keys(jsonContent)
         const buttons = []
         const buttonContainer = this.addHTMLTo(container, `<div class="p-2" />`)
-        const cardsContainer = this.addHTMLTo(container, `<div class="d-flex flex-row flex-wrap justify-content-center align-content-flex-start overflow-auto" />`)
+        const cardsContainer = this.addHTMLTo(container, `<div id="cards" class="d-flex flex-row flex-wrap justify-content-center align-content-flex-start overflow-auto" />`)
+        this.addHTMLTo(container, '<p class="m-2">NOTE: Input ports will be automatically associated.<p>')
         buttonNames = ['all'].concat(buttonNames)
         buttonNames.forEach(buttonName => {
-            if (buttonName in this.state.allowedButtons) {
+            if (buttonName in this.state.schema) {
                 const button = this.addHTMLTo(
                     buttonContainer,
-                    `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${this.state.allowedButtons[buttonName]}</button>`
+                    `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${this.state.schema[buttonName].locale}</button>`
                 )
                 buttons.push(button)
                 button.addEventListener('click', () => {
@@ -276,21 +356,25 @@ export class DEVSWebviewerLinker extends Component {
                 }, false);
             }
         })
-        this.setState(s => ({
-            ...s,
-            buttons,
-        }))
+        this.state.buttons = buttons
     }
 
     render = async () => {
         const { jsonContent, svgContent } = await this.parseProps(this.props)
-        this.setState(s => ({
-            ...s,
-            jsonContent,
-        }))
+        this.state.jsonContent = jsonContent;
+        this.state.originalJsonContent = this.clone(jsonContent);
         const container = this.addHTML("<div class='d-flex flex-row h-100 w-100' />")
         const jsonContainer = this.addHTMLTo(container, '<div id="json-container" class="d-flex flex-column card h-100 w-100" />')
         const svgContainer = this.addHTMLTo(container, '<div id="svg-container" class="card m-1 h-100 w-100" style="position:relative;" />')
+        const utilityButtons = this.addHTMLTo(svgContainer, '<div style="position:absolute;right:0"/>')
+        this.addHTMLTo(
+            utilityButtons,
+            `<button type="button" class="btn btn-primary m-1" data-button-type="reset">Reset</button>`
+        ).addEventListener('click', this.reset, false);
+        this.addHTMLTo(
+            utilityButtons,
+            `<button type="button" class="btn btn-primary m-1" data-button-type="clear">Clear</button>`
+        ).addEventListener('click', this.clear, false);
         this.renderJson(jsonContainer, jsonContent)
         this.renderSvg(svgContainer, svgContent)
         this.state.buttons[0].click()

@@ -7,12 +7,12 @@
 }
 
 .dwl-card {
-    min-width: 180
+    min-width: 180px;
 }
 
-svg {
-    height: 100%;
+#svg-content {
     width: 100%;
+    padding: 20px;
 }
 
 .warning-icon {

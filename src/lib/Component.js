@@ -6,32 +6,18 @@ export default class Component {
         this.name = this.constructor.name
     }
 
-    setState (state) {
-        if (typeof state === 'function') {
-            this.state = state(this.state)
-        } else if (typeof state === 'object') {
-            this.state = state
-        }
-    }
-
-    setCacheItem (key, value) {
-        window.localStorage.setItem(`${this.name}-${key}`, value)
-    }
-
-    getCacheItem (key) {
-        window.localStorage.getItem(`${this.name}-${key}`)
-    }
-
     emptyInnerHtml (elem) {
         while (elem.firstChild) {
             elem.removeChild(elem.lastChild)
         }
+        return this
     }
 
     destroy () {
         while (this.elem.firstChild) {
             this.elem.removeChild(this.elem.lastChild)
         }
+        return this
     }
 
     createElementFromHTML (htmlString) {
