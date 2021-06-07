@@ -1,0 +1,10 @@
+{
+    "info": {
+        "simulator": "Cadmium",
+        "name": "ABP_output_messages",
+        "type": "DEVS"
+    },
+    "nodes": [],
+    "ports": [],
+    "links": []
+}

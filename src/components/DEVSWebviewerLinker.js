@@ -16,24 +16,27 @@ export class DEVSWebviewerLinker extends Component {
             schema: {
                 nodes: {
                     locale: 'Nodes',
+                    emptyMessage: 'Nothing found',
                     contentFilter: (_, value) => {
                         return typeof value !== 'object'
-                    }
+                    },
                 },
                 ports: {
                     locale: 'Output ports',
+                    emptyMessage: 'There are no ports for this model',
                     filter: (_, value) => {
                         return value.type === 'output'
                     },
                     contentFilter: (key, value) => {
                         return key !== 'type' && typeof value !== 'object'
-                    }
+                    },
                 },
                 links: {
                     locale: 'Links',
+                    emptyMessage: 'Nothing found',
                     contentFilter: (_, value) => {
                         return typeof value !== 'object'
-                    }
+                    },
                 },
             },
         }
@@ -204,6 +207,7 @@ export class DEVSWebviewerLinker extends Component {
             this.emptyInnerHtml(cardsContainer)
             this.state.currentButtonPicker = key
             if (key == 'all') {
+                let hasContent = false
                 for (const key in jsonContent) {
                     if (key in this.state.schema) {
                         const slice = jsonContent[key]
@@ -216,6 +220,7 @@ export class DEVSWebviewerLinker extends Component {
                                         return;
                                     }
                                 }
+                                hasContent = true
                                 const card = this.addHTMLTo(
                                     cardsContainer,
                                     `<div id="${key}-${index}" class="card m-1 p-4 dwl-pointer dwl-card">
@@ -230,7 +235,14 @@ export class DEVSWebviewerLinker extends Component {
                         }
                     }
                 }
+                if (!hasContent) {
+                    this.addHTMLTo(
+                        cardsContainer,
+                        '<p class="p-2">Nothing found</p>'
+                    )
+                }
             } else {
+                let hasContent = false
                 const slice = jsonContent[key]
                 if (Array.isArray(slice)) {
                     slice.forEach((item, index) => {
@@ -241,6 +253,7 @@ export class DEVSWebviewerLinker extends Component {
                                 return;
                             }
                         }
+                        hasContent = true
                         const card = this.addHTMLTo(
                             cardsContainer,
                             `<div id="${key}-${index}" class="card m-1 p-4 dwl-pointer dwl-card">
@@ -252,6 +265,12 @@ export class DEVSWebviewerLinker extends Component {
                             this.onCardClick(card)
                         }, false);
                     })
+                }
+                if (!hasContent) {
+                    this.addHTMLTo(
+                        cardsContainer,
+                        `<p class="p-2">${this.state.schema[key].emptyMessage}</p>`
+                    )
                 }
             }
             for (const button of buttons) {
