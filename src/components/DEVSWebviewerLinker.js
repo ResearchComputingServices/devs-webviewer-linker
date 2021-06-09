@@ -1,33 +1,27 @@
-import Component from '../lib/Component'
 import "@babel/polyfill";
 
-export class DEVSWebviewerLinker extends Component {
+export class DEVSWebviewerLinker {
 
     constructor(elem, props) {
-        super(elem, props);
-        this.state = {
-            buttons: [],
-            jsonContent: null,
-            originalJsonContent: null,
-            selectedSvgElements: {},
-            currentButtonPicker: '',
-            currentCardId: null,
-            svgIdMap: new Set(),
-            schema: {
+        this.elem = elem
+        this.props = props || {}
+        const configurationProps = props.configuration != null && typeof props.configuration === 'object'
+            ? props.configuration
+            : {
                 all: {
                     caption: 'All',
-                    emptyMessage: 'Nothing found',
+                    emptyCaption: 'Nothing found',
                 },
                 nodes: {
                     caption: 'Nodes',
-                    emptyMessage: 'Nothing found',
+                    emptyCaption: 'Nothing found',
                     contentFilter: (_, value) => {
                         return typeof value !== 'object'
                     },
                 },
                 ports: {
                     caption: 'Output ports',
-                    emptyMessage: 'There are no ports for this model',
+                    emptyCaption: 'There are no ports for this model',
                     filter: (_, value) => {
                         return value.type === 'output'
                     },
@@ -37,13 +31,56 @@ export class DEVSWebviewerLinker extends Component {
                 },
                 links: {
                     caption: 'Links',
-                    emptyMessage: 'Nothing found',
+                    emptyCaption: 'Nothing found',
                     contentFilter: (_, value) => {
                         return typeof value !== 'object'
                     },
                 },
-            },
+            }
+        this.state = {
+            buttons: [],
+            jsonContent: null,
+            originalJsonContent: null,
+            selectedSvgElements: {},
+            currentButtonPicker: '',
+            currentCardId: null,
+            svgIdMap: new Set(),
+            configuration: configurationProps
         }
+    }
+
+    emptyInnerHtml = (elem) => {
+        while (elem.firstChild) {
+            elem.removeChild(elem.lastChild)
+        }
+        return this
+    }
+
+    destroy = () => {
+        while (this.elem.firstChild) {
+            this.elem.removeChild(this.elem.lastChild)
+        }
+        return this
+    }
+
+    createElementFromHTML = (htmlString) => {
+        const div = document.createElement('div')
+        if (typeof htmlString == 'string') {
+            div.innerHTML = htmlString.trim()
+        }
+        return div.firstChild
+    }
+
+    addHTML = (str) => {
+        const elem = this.createElementFromHTML(str)
+        this.elem.append(elem)
+        return elem
+    }
+
+    addHTMLTo = (toElem, str) => {
+        const elem = this.createElementFromHTML(str)
+        toElem.append(elem)
+        return elem
     }
 
     parseId = id => `#${id}`
@@ -151,7 +188,7 @@ export class DEVSWebviewerLinker extends Component {
         if (typeof item === 'object') {
             for (const key in item) {
                 const value = item[key]
-                const contentFilter = this.state.schema[buttonName].contentFilter
+                const contentFilter = this.state.configuration[buttonName].contentFilter
                 if (typeof contentFilter === 'function' && !contentFilter(key, value)) {
                     continue;
                 }
@@ -213,12 +250,12 @@ export class DEVSWebviewerLinker extends Component {
             if (key == 'all') {
                 let hasContent = false
                 for (const key in jsonContent) {
-                    if (key in this.state.schema) {
+                    if (key in this.state.configuration) {
                         const slice = jsonContent[key]
                         if (Array.isArray(slice)) {
                             slice.forEach((item, index) => {
                                 const jsonElem = jsonContent[key][index]
-                                const filterCard = this.state.schema[key].filter
+                                const filterCard = this.state.configuration[key].filter
                                 if (typeof filterCard  == 'function') {
                                     if (!filterCard(key, jsonElem)) {
                                         return;
@@ -251,7 +288,7 @@ export class DEVSWebviewerLinker extends Component {
                 if (Array.isArray(slice)) {
                     slice.forEach((item, index) => {
                         const jsonElem = jsonContent[key][index]
-                        const filterCard = this.state.schema[key].filter
+                        const filterCard = this.state.configuration[key].filter
                         if (typeof filterCard  == 'function') {
                             if (!filterCard(key, jsonElem)) {
                                 return;
@@ -273,7 +310,7 @@ export class DEVSWebviewerLinker extends Component {
                 if (!hasContent) {
                     this.addHTMLTo(
                         cardsContainer,
-                        `<p class="p-2">${this.state.schema[key].emptyMessage}</p>`
+                        `<p class="p-2">${this.state.configuration[key].emptyCaption}</p>`
                     )
                 }
             }
@@ -303,7 +340,7 @@ export class DEVSWebviewerLinker extends Component {
     clear = () => {
         const jsonContent = this.state.jsonContent
         for (const key in jsonContent) {
-            if (key in this.state.schema) {
+            if (key in this.state.configuration) {
                 const slice = jsonContent[key]
                 if (Array.isArray(slice)) {
                     slice.forEach((_, index) => {
@@ -368,8 +405,8 @@ export class DEVSWebviewerLinker extends Component {
         const buttonContainer = this.addHTMLTo(container, `<div class="p-2" />`)
         const cardsContainer = this.addHTMLTo(container, `<div id="cards" class="h-100 d-flex flex-row flex-wrap align-content-start justify-content-center overflow-auto" />`)
         this.addHTMLTo(container, '<p class="m-2">NOTE: Input ports will be automatically associated.<p>')
-        Object.keys(this.state.schema).forEach(buttonName => {
-            const caption = this.state.schema[buttonName].caption
+        Object.keys(this.state.configuration).forEach(buttonName => {
+            const caption = this.state.configuration[buttonName].caption
             const button = this.addHTMLTo(
                 buttonContainer,
                 `<button type="button" class="btn btn-secondary m-1" data-button-type="${buttonName}">${caption}</button>`
@@ -387,7 +424,7 @@ export class DEVSWebviewerLinker extends Component {
         const jsonContent = this.state.jsonContent
         for (const key in jsonContent) {
             if (!result) return result
-            if (key in this.state.schema) {
+            if (key in this.state.configuration) {
                 const slice = jsonContent[key]
                 if (Array.isArray(slice)) {
                     slice.forEach((_, index) => {
@@ -411,18 +448,25 @@ export class DEVSWebviewerLinker extends Component {
         const { jsonContent, svgContent } = await this.parseProps(this.props)
         this.state.jsonContent = jsonContent;
         this.state.originalJsonContent = this.clone(jsonContent);
-        const container = this.addHTML("<div class='d-flex flex-row h-100 w-100' />")
-        const jsonContainer = this.addHTMLTo(container, '<div id="json-container" class="d-flex flex-column card h-100 w-100" />')
-        const svgContainer = this.addHTMLTo(container, '<div id="svg-container" class="card m-1 h-100 w-100 position-relative" />')
+        const width = (window.innerWidth > 0) ? window.innerWidth : screen.width;
+        const container = this.addHTML(`<div class='d-flex ${width < 964 ? 'flex-column' : 'flex-row'} h-100 w-100' />`)
+        let jsonContainer, svgContainer
+        if (width < 964) {
+            svgContainer = this.addHTMLTo(container, '<div id="svg-container" class="card m-1 h-100 w-100 position-relative" />')
+            jsonContainer = this.addHTMLTo(container, '<div id="json-container" class="d-flex flex-column card h-100 w-100" />')
+        } else {
+            jsonContainer = this.addHTMLTo(container, '<div id="json-container" class="d-flex flex-column card h-100 w-100" />')
+            svgContainer = this.addHTMLTo(container, '<div id="svg-container" class="card m-1 h-100 w-100 position-relative" />')
+        }
         const utilityButtons = this.addHTMLTo(svgContainer, '<div class="position-absolute end-0"/>')
         this.addHTMLTo(
             utilityButtons,
             `<button type="button" class="btn btn-primary m-1" data-button-type="reset">Reset</button>`
-        ).addEventListener('click', this.reset, false);
+        ).addEventListener('click', typeof this.props.handleReset === 'function' ? this.props.handleReset : this.reset, false);
         this.addHTMLTo(
             utilityButtons,
             `<button type="button" class="btn btn-primary m-1" data-button-type="clear">Clear</button>`
-        ).addEventListener('click', this.clear, false);
+        ).addEventListener('click', typeof this.props.handleClear === 'function' ? this.props.handleClear : this.clear, false);
         this.renderJson(jsonContainer, jsonContent)
         this.renderSvg(svgContainer, svgContent)
         this.state.buttons[0].click()
