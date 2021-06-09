@@ -20,20 +20,57 @@ npm start
 ### Usage
 
 ```javascript
-// You can choose whatever container div you want this plugin to attach to.
-var elem = document.getElementById('devs-webviewer-linker');
-// You can pass your own configurations as well.
-var configurations = {}
+var linker = new DEVSWebviewerLinker(document.getElementById('devs-webviewer-linker'), {
+    jsonFile,
+    svgFile,
+    handleClear: () => {
+        console.log('handle your own clearing logic here...')
+        linker.clear()
+    },
+    handleReset: () => {
+        console.log('handle your own reseting logic here...')
+        linker.reset()
+    },
+    configuration: {
+       all: {
+            caption: 'All',
+            emptyCaption: 'Nothing found',
+        },
+        nodes: {
+            caption: 'Nodes',
+            emptyCaption: 'Nothing found',
+            contentFilter: (_, value) => {
+                return typeof value !== 'object'
+            },
+        },
+        ports: {
+            caption: 'Output ports',
+            emptyCaption: 'There are no ports for this model',
+            filter: (_, value) => {
+                return value.type === 'output'
+            },
+            contentFilter: (key, value) => {
+                return key !== 'type' && typeof value !== 'object'
+            },
+        },
+        links: {
+            caption: 'Links',
+            emptyCaption: 'Nothing found',
+            contentFilter: (_, value) => {
+                return typeof value !== 'object'
+            },
+        },
+    }
+});
 
-var linker = new DEVSWebviewerLinker(elem, configurations);
-linker.render();
+await linker.render();
+console.log(linker.hasCorruptedAssociations())
 
-var jsonContent = linker.getJSON();
-var svgContent = linker.getSVG();
-
-setTimeout(function() {
-    var results = linker.destroy();
-    var jsonContent = results.jsonContent;
-    var svgContent = results.svgContent;
-}, 5000);
+setTimeout(() => {
+    console.log(linker.getSvg())
+    console.log(linker.getJson())
+    linker.reset()
+    linker.clear()
+    linker.destroy()
+}, 60000)
 ```
