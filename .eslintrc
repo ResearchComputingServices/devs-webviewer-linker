@@ -6,10 +6,12 @@
         "document": true,
         "d3": true,
         "Set": true,
+        "screen": true
     },
     "extends": "eslint:recommended",
     "rules": {
-        "indent": ["error", 4]
+        "indent": ["error", 4],
+        "semi": ["error", "always"]
     },
     "parser": "babel-eslint"
 }

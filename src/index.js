@@ -1,5 +1,5 @@
-import './scss/styles.scss'
+import './scss/styles.scss';
 
-import { DEVSWebviewerLinker as defaultExport } from './components/DEVSWebviewerLinker'
+import { DEVSWebviewerLinker as defaultExport } from './components/DEVSWebviewerLinker';
 
-export default defaultExport
+export default defaultExport;
